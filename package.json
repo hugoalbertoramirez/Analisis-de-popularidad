@@ -1,0 +1,23 @@
+{
+  "name": "simple-video-chat",
+  "version": "0.1.0",
+  "description": "Implement a simple audio/video chat",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/??"
+  },
+  "keywords": [
+    "WebRTC",
+    "Video",
+    "Audio",
+    "JavaScript",
+    "HTML"
+  ],
+  "dependencies": {
+    "after-load": "1.0.4"
+  }
+}
