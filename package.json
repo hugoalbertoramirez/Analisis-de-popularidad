@@ -1,14 +1,10 @@
 {
-  "name": "simple-video-chat",
+  "name": "analisis-de-politica",
   "version": "0.1.0",
-  "description": "Implement a simple audio/video chat",
+  "description": "no",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/??"
   },
   "keywords": [
     "WebRTC",
@@ -18,6 +14,6 @@
     "HTML"
   ],
   "dependencies": {
-    "after-load": "1.0.4"
+    "pg": "6.x"
   }
 }
