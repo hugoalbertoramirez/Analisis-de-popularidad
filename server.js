@@ -3,29 +3,59 @@
 let https = require('https');
 var pg = require('pg');
 
+// Datos Bing Search API:
+
 let bingNewsSearchKey = 'cb266542a9cc4c01a008ccd985ea8917'; // 21 dias a partir de 26/10/2017
-let host = 'api.cognitive.microsoft.com';
-let path = '/bing/v7.0/news/search';
-//////////////////////////
+let host_BingNewsSearchAPI = 'api.cognitive.microsoft.com';
+let path_BingNewsSearchAPI = '/bing/v7.0/news/search';
+let limitNumberNews = 100;
+
+// Datos Text Analytics API:
+
+let hostTextAnaliticsAPI = 'westcentralus.api.cognitive.microsoft.com';
+let pathTextAnaliticsAPISentiment =  '/text/analytics/v2.0/sentiment';
+
+let languageAPI ="es";
+let TextAnalysisKey = "0c140e28fe754315b816691babf92e4e"; // no se
+let urlkeyPhrases = "https://westcentralus.api.cognitive.microsoft.com/text/analytics/v2.0/keyPhrases";
+let urlSentiment = "https://westcentralus.api.cognitive.microsoft.com/text/analytics/v2.0/sentiment";
+
+// Datos speech to text API:
 
 var SpeechToTextKey = "8e60a0fb81a047298615383a2c8dfa64"; // 30 días apartir del 25/10/2017
-var TextAnalysisKey = "0c140e28fe754315b816691babf92e4e"; // no se
-var urlkeyPhrases = "https://westcentralus.api.cognitive.microsoft.com/text/analytics/v2.0/keyPhrases";
-var urlSentiment = "https://westcentralus.api.cognitive.microsoft.com/text/analytics/v2.0/sentiment";
-//////////////////////////
 
+// Datos base de datos:
 
 var userName = 'Empower_User';
 var password = '3mp0w3rd4t4r00t';
 var server = 'dbdevelop.cywmxo6vg4sl.us-west-2.rds.amazonaws.com';
 var port = '5432';
 var database = 'politica';
-let connectionString = 'pg://' + userName + ':' + password + '@' + 
-                        server + ':' + port + '/' + database;
+let connectionString = 'pg://' + userName + ':' + password + '@' + server + ':' + port + '/' + database;
 
 let term = 'trump';
 
-let response_handler = function (response) 
+// Serching news functions:
+
+let Request_BingNewsSearchAPI = function (search) 
+{
+    console.log('Searching news for: ' + term);
+    let request_params = 
+    {
+        method : 'GET',
+        hostname : host_BingNewsSearchAPI,
+        path : path_BingNewsSearchAPI + '?q=' + search + '&count=' + limitNumberNews,
+        headers : 
+        {
+            'Ocp-Apim-Subscription-Key' : bingNewsSearchKey,
+        }
+    };
+
+    let req = https.request(request_params, ResponseHandler_BingNewsSearchAPI);
+    req.end();
+}
+
+let ResponseHandler_BingNewsSearchAPI = function (response) 
 {
     let body = '';
     response.on('data', function (d) 
@@ -35,29 +65,71 @@ let response_handler = function (response)
     response.on('end', function () 
     {
         body = JSON.parse(body);
-        //SaveResultsInDB(body.value);
+        //SaveNewsInDB(body.value);
 
+        // Build JSON to get opinions:
         var documents = { documents: [] };
         var document;
-        var lang ="es";
         
         var N = body.value.length;
         for (var i = 0; i < N; i++) 
         {
-            var element = body.value[i];
-            document = { id: i + 1, language: lang, text: element.description };
+            document = { id: body.value[i].url, language: languageAPI, text: body.value[i].description };
             documents.documents.push(document);    
         }
 
-        RequestOpinion(documents);
+        Request_Opinion(documents);
         
     });
     response.on('error', function (e) {
-        console.log('Error: ' + e.message);
+        console.log('Error ResponseHandler_BingNewsSearchAPI: ' + e.message);
     });
 };
 
-let SaveResultsInDB = function(resultsAPI)
+// Text Analitics - opinions API: 
+
+function Request_Opinion(documents) 
+{
+    let body = JSON.stringify (documents);
+
+    let request_params = 
+    {
+        method : 'POST',
+        hostname : hostTextAnaliticsAPI,
+        path : pathTextAnaliticsAPISentiment,
+        headers :
+        {
+            'Ocp-Apim-Subscription-Key' : TextAnalysisKey,
+        }
+    };
+
+    let req = https.request (request_params, ResponseHandler_Opinions);
+    req.write (body);
+    req.end ();
+}
+
+let ResponseHandler_Opinions = function (response) 
+{
+    let body = '';
+    response.on ('data', function (d) 
+    {
+        body += d;
+    });
+    response.on ('end', function () 
+    {
+        let body_ = JSON.parse(body);
+        let body__ = JSON.stringify (body_, null, 4);
+        console.log (body__);
+    });
+    response.on ('error', function (e) 
+    {
+        console.log ('Error ResponseHandler_Opinions: ' + e.message);
+    });
+};
+
+// Database functions:
+
+let SaveNewsInDB = function(resultsAPI)
 {
     // check results from API:
     // console.log(JSON.stringify(resultsAPI, null, 2));
@@ -78,8 +150,7 @@ let SaveResultsInDB = function(resultsAPI)
             else
             { 
                 urls = result.rows;
-                //RequestOpinion(resultsAPI);
-                insertNews(urls);
+                insertNewsInDB(urls);
 
                 // check urls from news from DB:
                 //console.log(JSON.stringify(urls, null, 4));
@@ -87,7 +158,7 @@ let SaveResultsInDB = function(resultsAPI)
         });
     });
 
-    function insertNews(urls_db)
+    function insertNewsInDB(urls_db)
     {
         var newAPI;
         var values = "";
@@ -132,7 +203,7 @@ let SaveResultsInDB = function(resultsAPI)
                     }
                     else
                     { 
-                        console.log("succeded insert rows");
+                        console.log("succeded inserting rows");
                     }
                 });
             });
@@ -140,44 +211,17 @@ let SaveResultsInDB = function(resultsAPI)
     }
 }
 
-function RequestOpinion(documents) {
+let SaveOpinions = function()
+{
 
-    let body = JSON.stringify (documents);
-    //console.log(body);
-
-    let request_params = {
-        method : 'POST',
-        hostname : 'westcentralus.api.cognitive.microsoft.com',
-        path : '/text/analytics/v2.0/sentiment',
-        headers : {
-            'Ocp-Apim-Subscription-Key' : TextAnalysisKey,
-        }
-    };
-
-    let req = https.request (request_params, response_handlerOpinions);
-    req.write (body);
-    req.end ();
 }
 
-let response_handlerOpinions = function (response) {
-    let body = '';
-    response.on ('data', function (d) {
-        body += d;
-    });
-    response.on ('end', function () {
-        let body_ = JSON.parse (body);
-        let body__ = JSON.stringify (body_, null, 4);
-        console.log (body__);
-    });
-    response.on ('error', function (e) {
-        console.log ('Error: ' + e.message);
-    });
-};
+// Helper functions
 
-
-function contains(a, obj)
+function contains(arr, obj)
 {
-    for (var i = 0; i < a.length; i++) 
+    var N = arr.length;
+    for (var i = 0; i < N; i++) 
     {
         if (a[i].url == obj) 
         {
@@ -187,21 +231,4 @@ function contains(a, obj)
     return false;
 }
 
-let bing_news_search = function (search) 
-{
-  console.log('Searching news for: ' + term);
-  let request_params = {
-        method : 'GET',
-        hostname : host,
-        path : path + '?q=' + search + '&count=100',
-        headers : {
-            'Ocp-Apim-Subscription-Key' : bingNewsSearchKey,
-        }
-    };
-
-    let req = https.request(request_params, response_handler);
-    //console.log('path: ' + request_params.path);
-    req.end();
-}
-
-bing_news_search(term);
+Request_BingNewsSearchAPI(term);
