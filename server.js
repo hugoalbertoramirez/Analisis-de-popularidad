@@ -8,7 +8,7 @@ var pg = require('pg');
 let bingNewsSearchKey = 'cb266542a9cc4c01a008ccd985ea8917'; // 21 dias a partir de 26/10/2017
 let host_BingNewsSearchAPI = 'api.cognitive.microsoft.com';
 let path_BingNewsSearchAPI = '/bing/v7.0/news/search';
-let limitNumberNews = 100; // MAX = 100
+let limitNumberNews = 10; // MAX = 100
 
 // Datos Text Analytics API:
 
@@ -40,7 +40,7 @@ var keyPhrasesAPI;
 var opinionsAPI;
 
 var documents = { documents: [] };
-var term = '';
+var term = 'epn';
 
 // Searching news functions:
 
@@ -197,7 +197,7 @@ let SaveNewsInDB = function(index)
                     }
                     else
                     {
-                        insert_tb_content(newAPI);
+                        //insert_tb_content(newAPI);
                     }
                     SaveNewsInDB(++index);
                 }
