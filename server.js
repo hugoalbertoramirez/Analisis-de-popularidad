@@ -8,7 +8,7 @@ var pg = require('pg');
 let bingNewsSearchKey = 'cb266542a9cc4c01a008ccd985ea8917'; // 21 dias a partir de 26/10/2017
 let host_BingNewsSearchAPI = 'api.cognitive.microsoft.com';
 let path_BingNewsSearchAPI = '/bing/v7.0/news/search';
-let limitNumberNews = 100;
+let limitNumberNews = 100; // MAX = 100
 
 // Datos Text Analytics API:
 
@@ -35,8 +35,12 @@ var database = 'politica';
 let connectionString = 'pg://' + userName + ':' + password + '@' + server + ':' + port + '/' + database;
 
 //
+var newsAPI;
+var keyPhrasesAPI;
+var opinionsAPI;
 
-let term = 'trump';
+var documents = { documents: [] };
+var term = '';
 
 // Searching news functions:
 
@@ -67,9 +71,9 @@ let ResponseHandler_BingNewsSearchAPI = function (response)
     });
     response.on('end', function () 
     {
-        var newsData = (JSON.parse(body)).value;
+        newsAPI = (JSON.parse(body)).value;
 
-        SaveNewsInDB(newsData);
+        BuildJSONDocs(newsAPI);
     });
     response.on('error', function (e) {
         console.log('Error ResponseHandler_BingNewsSearchAPI: ' + e.message);
@@ -107,9 +111,9 @@ let ResponseHandler_Opinions = function (response)
     });
     response.on ('end', function () 
     {
-        let opinionsAPI = JSON.parse(body);
+        opinionsAPI = (JSON.parse(body)).documents;
 
-        SaveOpinionsInDB(opinionsAPI.documents);
+        Request_KeyPhrasesExtraction(documents);
     });
     response.on ('error', function (e) 
     {
@@ -144,9 +148,10 @@ let ResponseHandler_KeyPhrases = function (response)
         body += d;
     });
     response.on ('end', function () {
-        let body_ = JSON.parse (body);
-        let body__ = JSON.stringify (body_, null, '  ');
-        console.log (body__);
+        
+        keyPhrasesAPI = (JSON.parse(body)).documents;
+
+        SaveNewsInDB(0);
     });
     response.on ('error', function (e) {
         console.log ('Error: ' + e.message);
@@ -155,160 +160,200 @@ let ResponseHandler_KeyPhrases = function (response)
 
 // Database functions:
 
-let SaveNewsInDB = function(newsData)
+let SaveNewsInDB = function(index)
 {
     // check results from API:
-    // console.log(JSON.stringify(newsData, null, 2));
+    // console.log(JSON.stringify(newsAPI, null, 2));
+    // console.log(JSON.stringify(opinionsAPI, null, 2));
+    // console.log(JSON.stringify(keyPhrasesAPI, null, 2));
 
-    // get all URL of news in DB 
-    var urls = [];
-    var querySelect;
-    pg.connect(connectionString, function(err, client, done) 
+    var N = newsAPI.length;
+    var newAPI;
+    var query_id_nu_content;
+    var id_nu_opinion;
+    var id_nu_content;
+
+    if (index < N)
     {
-        querySelect = 'SELECT url FROM tb_content WHERE id_nu_content_type = 1;';
-        client.query(querySelect, function(err, result) 
-        {
-            done();
-            if (err)
-            { 
-                console.error("error: " + querySelect + '\n' + err);
-            }
-            else
-            { 
-                urls = result.rows;
-                insertNewsInDB(urls);
+        newAPI = newsAPI[index];
 
-                // check urls from news from DB:
-                //console.log(JSON.stringify(urls, null, 4));
-            }
-        });
-    });
-
-    function insertNewsInDB(urls_db)
-    {
-        var newAPI;
-        var values = "";
-        var N = newsData.length;
-        console.log(N);
-        for (var i = 0; i < N; i++)
+        pg.connect(connectionString, function(err, client, done) 
         {
-            newAPI = newsData[i];
+            query_id_nu_content = "SELECT id_nu_content FROM tb_content WHERE url = '"  + newAPI.url  + "'";
             
-            if (!containsURL(urls_db, newAPI.url))
+            client.query(query_id_nu_content, function(err, result) 
             {
-                values += 
-                    "('1','" +
-                    newAPI.name.replace(/'/g,'') + "','" +
-                    newAPI.description.replace(/'/g,'') + "','" +
-                    newAPI.url + "','" +
-                    (newAPI.image ? newAPI.image.thumbnail.contentUrl : "") + "','" +
-                    newAPI.datePublished + "','" +
-                    "0,0" + "','" +
-                    "1" + "')," ;
-            }
-        }
-        values = values.substring(0, values.length - 1);
-    
-        // check values to insert in DB:
-        // console.log("VALUES> " + values);
+                done();
+                if (err)
+                { 
+                    console.error("error: \n" + query_id_nu_content + '\n' + err);
+                }
+                else
+                { 
+                    if (result.rows.length > 0)
+                    {
+                        id_nu_content = result.rows[0].id_nu_content;
+                        console.log("Ya existe: " + id_nu_content + ":" + newAPI.url);
+                    }
+                    else
+                    {
+                        insert_tb_content(newAPI);
+                    }
+                    SaveNewsInDB(++index);
+                }
+            });
+        });
+    }
 
-        if(values != "")
-        {
-            var queryINSERT = 'INSERT INTO tb_content ' +
+    function insert_tb_content(newAPI)
+    {
+        var query_insert_tb_content = 'INSERT INTO tb_content ' +
             '(id_nu_content_type, tittle, description, url, url_image, dtm_date, location, id_nu_state) ' + 
-            'VALUES ' + values;
-            
+            'VALUES (' +
+                "'1','" +
+                newAPI.name.replace(/'/g,'') + "','" +
+                newAPI.description.replace(/'/g,'') + "','" +
+                newAPI.url + "','" +
+                (newAPI.image ? newAPI.image.thumbnail.contentUrl : "") + "','" +
+                newAPI.datePublished + "','" +
+                "0,0" + "','" +
+                "1" + "') " +
+            "RETURNING id_nu_content";
+        
+        pg.connect(connectionString, function(err, client, done) 
+        {
+            client.query(query_insert_tb_content, function(err, result) 
+            {
+                done();
+                if (err)
+                { 
+                    console.error("error: \n" + query_insert_tb_content + '\n' + err);
+                }
+                else
+                { 
+                    id_nu_content = result.rows[0].id_nu_content;
+                    console.log("succeded inserting id_nu_content: " + id_nu_content);
+
+                    insert_tb_opinion();
+                }
+            });
+        });
+    }
+
+    function insert_tb_opinion()
+    {
+        var opinion = searchOpinion(newAPI.url)
+
+        if (opinion)
+        {
+            var query_insert_tb_opinion = "INSERT INTO tb_opinion (opinion) VALUES (" + opinion + ") RETURNING id_nu_opinion";
+
             pg.connect(connectionString, function(err, client, done) 
             {
-                client.query(queryINSERT, function(err, result) 
+                client.query(query_insert_tb_opinion, function(err, result) 
                 {
                     done();
                     if (err)
                     { 
-                        console.error("error: " + queryINSERT + '\n' + err);
+                        console.error("error: \n" + query_insert_tb_opinion + '\n' + err);
                     }
                     else
                     { 
-                        console.log("succeded inserting rows");
-
-                        BuildJSONDocs(newsData);
+                        id_nu_opinion = result.rows[0].id_nu_opinion;
+                        console.log("succeded inserting id_nu_opinion: " + id_nu_opinion);
+    
+                        insert_tb_r_content_opinion();
                     }
                 });
             });
-        }   
+        }
     }
-}
 
-let SaveOpinionsInDB = function (opinions)
-{
-    // get all ids of exitents URLs in DB 
-    var ids = [];
-    var querySelect = 'SELECT id_nu_content FROM tb_content WHERE url IN (';
-    var N = opinions.length;
-
-    for (var i = 0; i < N; i++)
+    function insert_tb_r_content_opinion()
     {
-        querySelect += "'" + opinions[i].id + "',";
-    }
-    querySelect = values.substring(0, values.length - 1);
-    querySelect += ")";
-
-    pg.connect(connectionString, function(err, client, done) 
-    {
-        client.query(querySelect, function(err, result) 
+        if (id_nu_opinion && id_nu_content)
         {
-            done();
-            if (err)
-            { 
-                console.error("error: " + querySelect + '\n' + err);
-            }
-            else
-            { 
-                ids = result.rows;
-                insertOpinionsInDB(ids);
-
-                // check urls from news from DB:
-                //console.log(JSON.stringify(urls, null, 4));
-            }
-        });
-    });
-
-    function insertOpinionsInDB(ids) 
-    {
-
-    }
-}
-
-let BuildJSONDocs = function(newsData)
-{
-    // Build JSON to get opinions and key phrases:
-    var documents = { documents: [] };
-    var document;
-
-    var N = newsData.length;
-    for (var i = 0; i < N; i++) 
-    {
-        document = { id: newsData[i].url, language: languageAPI, text: newsData[i].description };
-        documents.documents.push(document);    
+            var query_insert_tb_r_content_opinion = "INSERT INTO tb_r_content_opinion (id_nu_content, id_nu_opinion) VALUES (" + 
+                                                   id_nu_content + ", " + id_nu_opinion + ") RETURNING id_nu_content_opinion";
+            
+            pg.connect(connectionString, function(err, client, done) 
+            {
+                client.query(query_insert_tb_r_content_opinion, function(err, result) 
+                {
+                    done();
+                    if (err)
+                    { 
+                        console.error("error: \n" + query_insert_tb_r_content_opinion + '\n' + err);
+                    }
+                    else
+                    { 
+                        console.log("succeded inserting id_nu_content_opinion: " + result.rows[0].id_nu_content_opinion);
+    
+                        insert_key_phrases();
+                    }
+                });
+            });
+        }
     }
 
-    Request_Opinion(documents);
-    Request_KeyPhrasesExtraction(documents);
+    function insert_key_phrases()
+    {
+        // var keyPhrases = searchKeyPhrases(newAPI.url);
+
+        // var nPhrases = keyPhrases.length;
+
+        // if (indexPhrase < nPhrases)
+        // {
+
+        // }
+
+    }
 }
 
 // Helper functions
 
-function containsURL(arr, obj)
+let BuildJSONDocs = function()
 {
-    var N = arr.length;
+    // Build JSON to get opinions and key phrases:
+    
+    var document;
+
+    var N = newsAPI.length;
     for (var i = 0; i < N; i++) 
     {
-        if (arr[i].url == obj) 
+        document = { id: newsAPI[i].url, language: languageAPI, text: newsAPI[i].description };
+        documents.documents.push(document);    
+    }
+
+    Request_Opinion(documents);
+}
+
+function searchOpinion(url)
+{
+    var N = opinionsAPI.length;
+
+    for (var i = 0; i < N; i++) 
+    {
+        if (opinionsAPI[i].id == url)
         {
-            return true;
+            return opinionsAPI[i].score;
         }
     }
-    return false;
+    return null;
+}
+
+function searchKeyPhrases(url)
+{
+    var N = keyPhrasesAPI.length;
+
+    for (var i = 0; i < N; i++) 
+    {
+        if (keyPhrasesAPI[i].id == url)
+        {
+            return keyPhrasesAPI[i].keyPhrases;
+        }
+    }
+    return null;
 }
 
 Request_BingNewsSearchAPI(term);
