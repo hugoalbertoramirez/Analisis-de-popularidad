@@ -14,9 +14,10 @@ let limitNumberNews = 100;
 
 let hostTextAnaliticsAPI = 'westcentralus.api.cognitive.microsoft.com';
 let pathTextAnaliticsAPISentiment =  '/text/analytics/v2.0/sentiment';
+let pathTextAnaliticsAPIKeyPhrases = '/text/analytics/v2.0/keyPhrases';
 
 let languageAPI ="es";
-let TextAnalysisKey = "0c140e28fe754315b816691babf92e4e"; // no se
+let TextAnalysisKey = "0c140e28fe754315b816691babf92e4e"; // 13 dias a partir de 20/10/2017
 let urlkeyPhrases = "https://westcentralus.api.cognitive.microsoft.com/text/analytics/v2.0/keyPhrases";
 let urlSentiment = "https://westcentralus.api.cognitive.microsoft.com/text/analytics/v2.0/sentiment";
 
@@ -33,9 +34,11 @@ var port = '5432';
 var database = 'politica';
 let connectionString = 'pg://' + userName + ':' + password + '@' + server + ':' + port + '/' + database;
 
+//
+
 let term = 'trump';
 
-// Serching news functions:
+// Searching news functions:
 
 let Request_BingNewsSearchAPI = function (search) 
 {
@@ -64,22 +67,9 @@ let ResponseHandler_BingNewsSearchAPI = function (response)
     });
     response.on('end', function () 
     {
-        body = JSON.parse(body);
-        //SaveNewsInDB(body.value);
+        var newsData = (JSON.parse(body)).value;
 
-        // Build JSON to get opinions:
-        var documents = { documents: [] };
-        var document;
-        
-        var N = body.value.length;
-        for (var i = 0; i < N; i++) 
-        {
-            document = { id: body.value[i].url, language: languageAPI, text: body.value[i].description };
-            documents.documents.push(document);    
-        }
-
-        Request_Opinion(documents);
-        
+        SaveNewsInDB(newsData);
     });
     response.on('error', function (e) {
         console.log('Error ResponseHandler_BingNewsSearchAPI: ' + e.message);
@@ -88,7 +78,7 @@ let ResponseHandler_BingNewsSearchAPI = function (response)
 
 // Text Analitics - opinions API: 
 
-function Request_Opinion(documents) 
+let Request_Opinion = function (documents) 
 {
     let body = JSON.stringify (documents);
 
@@ -117,9 +107,9 @@ let ResponseHandler_Opinions = function (response)
     });
     response.on ('end', function () 
     {
-        let body_ = JSON.parse(body);
-        let body__ = JSON.stringify (body_, null, 4);
-        console.log (body__);
+        let opinionsAPI = JSON.parse(body);
+
+        SaveOpinionsInDB(opinionsAPI.documents);
     });
     response.on ('error', function (e) 
     {
@@ -127,12 +117,48 @@ let ResponseHandler_Opinions = function (response)
     });
 };
 
+// Test analitics - key phrases extraction API:
+
+let Request_KeyPhrasesExtraction = function (documents)
+{
+    let body = JSON.stringify (documents);
+    
+    let request_params = {
+        method : 'POST',
+        hostname : hostTextAnaliticsAPI,
+        path : pathTextAnaliticsAPIKeyPhrases,
+        headers : {
+            'Ocp-Apim-Subscription-Key' : TextAnalysisKey,
+        }
+    };
+
+    let req = https.request (request_params, ResponseHandler_KeyPhrases);
+    req.write (body);
+    req.end ();
+}
+
+let ResponseHandler_KeyPhrases = function (response)
+{
+    let body = '';
+    response.on ('data', function (d) {
+        body += d;
+    });
+    response.on ('end', function () {
+        let body_ = JSON.parse (body);
+        let body__ = JSON.stringify (body_, null, '  ');
+        console.log (body__);
+    });
+    response.on ('error', function (e) {
+        console.log ('Error: ' + e.message);
+    });
+}
+
 // Database functions:
 
-let SaveNewsInDB = function(resultsAPI)
+let SaveNewsInDB = function(newsData)
 {
     // check results from API:
-    // console.log(JSON.stringify(resultsAPI, null, 2));
+    // console.log(JSON.stringify(newsData, null, 2));
 
     // get all URL of news in DB 
     var urls = [];
@@ -162,13 +188,13 @@ let SaveNewsInDB = function(resultsAPI)
     {
         var newAPI;
         var values = "";
-        var N = resultsAPI.length;
+        var N = newsData.length;
         console.log(N);
         for (var i = 0; i < N; i++)
         {
-            newAPI = resultsAPI[i];
+            newAPI = newsData[i];
             
-            if (!contains(urls_db, newAPI.url))
+            if (!containsURL(urls_db, newAPI.url))
             {
                 values += 
                     "('1','" +
@@ -178,7 +204,7 @@ let SaveNewsInDB = function(resultsAPI)
                     (newAPI.image ? newAPI.image.thumbnail.contentUrl : "") + "','" +
                     newAPI.datePublished + "','" +
                     "0,0" + "','" +
-                    "" + "')," ;
+                    "1" + "')," ;
             }
         }
         values = values.substring(0, values.length - 1);
@@ -189,7 +215,7 @@ let SaveNewsInDB = function(resultsAPI)
         if(values != "")
         {
             var queryINSERT = 'INSERT INTO tb_content ' +
-            '(id_nu_content_type, tittle, description, url, url_image, dtm_date, location, state) ' + 
+            '(id_nu_content_type, tittle, description, url, url_image, dtm_date, location, id_nu_state) ' + 
             'VALUES ' + values;
             
             pg.connect(connectionString, function(err, client, done) 
@@ -204,6 +230,8 @@ let SaveNewsInDB = function(resultsAPI)
                     else
                     { 
                         console.log("succeded inserting rows");
+
+                        BuildJSONDocs(newsData);
                     }
                 });
             });
@@ -211,19 +239,71 @@ let SaveNewsInDB = function(resultsAPI)
     }
 }
 
-let SaveOpinions = function()
+let SaveOpinionsInDB = function (opinions)
 {
+    // get all ids of exitents URLs in DB 
+    var ids = [];
+    var querySelect = 'SELECT id_nu_content FROM tb_content WHERE url IN (';
+    var N = opinions.length;
 
+    for (var i = 0; i < N; i++)
+    {
+        querySelect += "'" + opinions[i].id + "',";
+    }
+    querySelect = values.substring(0, values.length - 1);
+    querySelect += ")";
+
+    pg.connect(connectionString, function(err, client, done) 
+    {
+        client.query(querySelect, function(err, result) 
+        {
+            done();
+            if (err)
+            { 
+                console.error("error: " + querySelect + '\n' + err);
+            }
+            else
+            { 
+                ids = result.rows;
+                insertOpinionsInDB(ids);
+
+                // check urls from news from DB:
+                //console.log(JSON.stringify(urls, null, 4));
+            }
+        });
+    });
+
+    function insertOpinionsInDB(ids) 
+    {
+
+    }
+}
+
+let BuildJSONDocs = function(newsData)
+{
+    // Build JSON to get opinions and key phrases:
+    var documents = { documents: [] };
+    var document;
+
+    var N = newsData.length;
+    for (var i = 0; i < N; i++) 
+    {
+        document = { id: newsData[i].url, language: languageAPI, text: newsData[i].description };
+        documents.documents.push(document);    
+    }
+
+    Request_Opinion(documents);
+    Request_KeyPhrasesExtraction(documents);
 }
 
 // Helper functions
 
-function contains(arr, obj)
+function containsURL(arr, obj)
 {
     var N = arr.length;
     for (var i = 0; i < N; i++) 
     {
-        if (a[i].url == obj) 
+        if (arr[i].url == obj) 
         {
             return true;
         }
