@@ -8,7 +8,7 @@ var pg = require('pg');
 let bingNewsSearchKey = 'cb266542a9cc4c01a008ccd985ea8917'; // 21 dias a partir de 26/10/2017
 let host_BingNewsSearchAPI = 'api.cognitive.microsoft.com';
 let path_BingNewsSearchAPI = '/bing/v7.0/news/search';
-let limitNumberNews = 10; // MAX = 100
+let limitNumberNews = 100; // MAX = 100
 
 // Datos Text Analytics API:
 
@@ -38,9 +38,48 @@ let connectionString = 'pg://' + userName + ':' + password + '@' + server + ':' 
 var newsAPI;
 var keyPhrasesAPI;
 var opinionsAPI;
-
 var documents = { documents: [] };
+
 var term = 'epn';
+
+// Fuente: https://elmercurio.com.mx/nacional/conoce-los-28-aspirantes-a-la-presidencia-mexico-en-2018
+var candidatosPresidencia2018 =
+[
+"Ricardo Anaya",
+"Margarita Zavala",
+"Luis Ernesto Derbez",
+"Rafael Moreno Valle",
+"Juan Carlos Romero Hicks",
+"Miguel Márquez",
+"Ernesto Ruffo",
+"Miguel Ángel Yunes Linares",
+"Eruviél Avila",
+"Manlio Fabio Beltrones",
+"Enrique Octavio de la Madrid Cordero",
+"José Antonio Meade",
+"José Ramón Narro Robles",
+"Aurelio Nuño Mayer",
+"Ivonne Aracelly Ortega Pacheco",
+"Miguel Ángel Osorio Chong",
+"Luis Videgaray Caso",
+"Silvano Aureoles Conejo",
+"Miguel Ángel Mancera",
+"Graco Luis Ramírez Garrido Abreu",
+"Juan Zepeda Hernández",
+"Emilio Álvarez Icaza Longoria",
+"José Gerardo Rodolfo Fernández Noroña",
+"Pedro Ferriz de Con",
+"María de Jesús Patricio Martínez",
+"Armando Ríos Piter",
+"Jaime Heliódoro Rodríguez Calderón",
+"Andrés Manuel López Obrador",
+];
+
+
+
+Request_BingNewsSearchAPI(term);
+
+
 
 // Searching news functions:
 
@@ -172,6 +211,8 @@ let SaveNewsInDB = function(index)
     var query_id_nu_content;
     var id_nu_opinion;
     var id_nu_content;
+    var keyPhrases;
+    var nKeyPhrases;
 
     if (index < N)
     {
@@ -197,9 +238,8 @@ let SaveNewsInDB = function(index)
                     }
                     else
                     {
-                        //insert_tb_content(newAPI);
+                        insert_tb_content(newAPI);
                     }
-                    SaveNewsInDB(++index);
                 }
             });
         });
@@ -289,24 +329,104 @@ let SaveNewsInDB = function(index)
                     { 
                         console.log("succeded inserting id_nu_content_opinion: " + result.rows[0].id_nu_content_opinion);
     
-                        insert_key_phrases();
+                        keyPhrases = searchKeyPhrases(newAPI.url);
+                        nKeyPhrases = keyPhrases.length;
+                        saveKeyPhrases(0);
                     }
                 });
             });
         }
     }
 
-    function insert_key_phrases()
+    function saveKeyPhrases(indexKey)
     {
-        // var keyPhrases = searchKeyPhrases(newAPI.url);
+        if (indexKey < nKeyPhrases)
+        {
+            pg.connect(connectionString, function(err, client, done) 
+            {
+                var keyPhrase = keyPhrases[indexKey];
+                var query_select_keyPhrase = "SELECT id_nu_key_phrase FROM tb_key_phrase WHERE key_phrase = " + "'" + keyPhrase + "'";
 
-        // var nPhrases = keyPhrases.length;
+                client.query(query_select_keyPhrase, function(err, result) 
+                {
+                    done();
+                    if (err)
+                    { 
+                        console.error("error: \n" + query_select_keyPhrase + '\n' + err);
+                    }
+                    else
+                    { 
+                        if (result.rows.length > 0)
+                        {
+                            var id_nu_key_phrase = result.rows[0].id_nu_key_phrase;
+                            console.log("Ya existe: " + id_nu_key_phrase + ":" + keyPhrase);
 
-        // if (indexPhrase < nPhrases)
-        // {
+                            insert_tb_r_content_key_phrase(id_nu_key_phrase, -1);
+                        }
+                        else
+                        {
+                            insert_tb_key_phrase(keyPhrase);
+                        }
+                    }
+                });
+            });
 
-        // }
+            function insert_tb_key_phrase(keyPhrase)
+            {
+                pg.connect(connectionString, function(err, client, done) 
+                {
+                    var query_insert_tb_key_phrase = "INSERT INTO tb_key_phrase (key_phrase) VALUES ('" + keyPhrase + "') RETURNING id_nu_key_phrase";
+    
+                    client.query(query_insert_tb_key_phrase, function(err, result) 
+                    {
+                        done();
+                        if (err)
+                        { 
+                            console.error("error: \n" + query_insert_tb_key_phrase + '\n' + err);
+                        }
+                        else
+                        { 
+                            var id_nu_key_phrase = result.rows[0].id_nu_key_phrase;
 
+                            console.log("succeded inserting id_nu_key_phrase: " + id_nu_key_phrase);
+
+                            insert_tb_r_content_key_phrase(id_nu_key_phrase, 1)
+                        }
+                    });
+                });
+            }
+
+            function insert_tb_r_content_key_phrase(id_nu_key_phrase, frequency)
+            {
+                pg.connect(connectionString, function(err, client, done) 
+                {
+                    var query_insert_tb_r_content_key_phrase = "INSERT INTO tb_r_content_key_phrase (id_nu_content, id_nu_key_phrase, frequency) VALUES (" + 
+                                                                id_nu_content + "," + 
+                                                                id_nu_key_phrase + "," + 
+                                                                (frequency > 0 ?  frequency : 1) + ") RETURNING id_nu_content_key_phrase";
+    
+                    client.query(query_insert_tb_r_content_key_phrase, function(err, result) 
+                    {
+                        done();
+                        if (err)
+                        { 
+                            console.error("error: \n" + query_insert_tb_r_content_key_phrase + '\n' + err);
+                        }
+                        else
+                        { 
+                            console.log("succeded inserting id_nu_key_phrase: " + result.rows[0].id_nu_content_key_phrase);
+
+                            saveKeyPhrases(++indexKey);
+                        }
+                    });
+                });
+            }
+        }
+        else
+        {
+            SaveNewsInDB(++index);
+        }
+        
     }
 }
 
@@ -355,5 +475,3 @@ function searchKeyPhrases(url)
     }
     return null;
 }
-
-Request_BingNewsSearchAPI(term);
