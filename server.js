@@ -45,47 +45,53 @@ var term = 'epn';
 // Fuente: https://elmercurio.com.mx/nacional/conoce-los-28-aspirantes-a-la-presidencia-mexico-en-2018
 var candidatosPresidencia2018 =
 [
-"Ricardo Anaya",
-"Margarita Zavala",
-"Luis Ernesto Derbez",
-"Rafael Moreno Valle",
-"Juan Carlos Romero Hicks",
-"Miguel Márquez",
-"Ernesto Ruffo",
-"Miguel Ángel Yunes Linares",
-"Eruviél Avila",
-"Manlio Fabio Beltrones",
-"Enrique Octavio de la Madrid Cordero",
-"José Antonio Meade",
-"José Ramón Narro Robles",
-"Aurelio Nuño Mayer",
-"Ivonne Aracelly Ortega Pacheco",
-"Miguel Ángel Osorio Chong",
-"Luis Videgaray Caso",
-"Silvano Aureoles Conejo",
-"Miguel Ángel Mancera",
-"Graco Luis Ramírez Garrido Abreu",
-"Juan Zepeda Hernández",
-"Emilio Álvarez Icaza Longoria",
-"José Gerardo Rodolfo Fernández Noroña",
-"Pedro Ferriz de Con",
-"María de Jesús Patricio Martínez",
-"Armando Ríos Piter",
-"Jaime Heliódoro Rodríguez Calderón",
-"Andrés Manuel López Obrador",
+    "Ricardo Anaya",
+    "Margarita Zavala",
+    "Luis Ernesto Derbez",
+    "Rafael Moreno Valle",
+    "Juan Carlos Romero Hicks",
+    "Miguel Márquez",
+    "Ernesto Ruffo",
+    "Miguel Ángel Yunes Linares",
+    "Eruviél Avila",
+    "Manlio Fabio Beltrones",
+    "Enrique Octavio de la Madrid Cordero",
+    "José Antonio Meade",
+    "José Ramón Narro Robles",
+    "Aurelio Nuño Mayer",
+    "Ivonne Aracelly Ortega Pacheco",
+    "Miguel Ángel Osorio Chong",
+    "Luis Videgaray Caso",
+    "Silvano Aureoles Conejo",
+    "Miguel Ángel Mancera",
+    "Graco Luis Ramírez Garrido Abreu",
+    "Juan Zepeda Hernández",
+    "Emilio Álvarez Icaza Longoria",
+    "José Gerardo Rodolfo Fernández Noroña",
+    "Pedro Ferriz de Con",
+    "María de Jesús Patricio Martínez",
+    "Armando Ríos Piter",
+    "Jaime Heliódoro Rodríguez Calderón",
+    "Andrés Manuel López Obrador",
 ];
 
+var partidosPoliticos =
+[
+    "PARTIDO ACCIÓN NACIONAL",
+    "PARTIDO REVOLUCIONARIO INSTITUCIONAL", 
+    "PARTIDO DE LA REVOLUCIÓN DEMOCRÁTICA.", 
+    "PARTIDO VERDE ECOLOGISTA DE MÉXICO", 
+    "PARTIDO DEL TRABAJO",
+    "NUEVA ALIANZA",
+    "MOVIMIENTO CIUDADANO",
+    "MOVIMIENTO REGENERACIÓN NACIONAL"
+];
 
-
-Request_BingNewsSearchAPI(term);
-
-
-
+var terms = partidosPoliticos;
 // Searching news functions:
 
 let Request_BingNewsSearchAPI = function (search) 
 {
-    console.log('Searching news for: ' + term);
     let request_params = 
     {
         method : 'GET',
@@ -104,6 +110,7 @@ let Request_BingNewsSearchAPI = function (search)
 let ResponseHandler_BingNewsSearchAPI = function (response) 
 {
     let body = '';
+    newsAPI = { };
     response.on('data', function (d) 
     {
         body += d;
@@ -144,6 +151,7 @@ let Request_Opinion = function (documents)
 let ResponseHandler_Opinions = function (response) 
 {
     let body = '';
+    opinionsAPI = { };
     response.on ('data', function (d) 
     {
         body += d;
@@ -183,6 +191,7 @@ let Request_KeyPhrasesExtraction = function (documents)
 let ResponseHandler_KeyPhrases = function (response)
 {
     let body = '';
+    keyPhrasesAPI = { };
     response.on ('data', function (d) {
         body += d;
     });
@@ -199,7 +208,7 @@ let ResponseHandler_KeyPhrases = function (response)
 
 // Database functions:
 
-let SaveNewsInDB = function(index)
+let SaveNewsInDB = function (index)
 {
     // check results from API:
     // console.log(JSON.stringify(newsAPI, null, 2));
@@ -235,6 +244,8 @@ let SaveNewsInDB = function(index)
                     {
                         id_nu_content = result.rows[0].id_nu_content;
                         console.log("Ya existe: " + id_nu_content + ":" + newAPI.url);
+
+                        SaveNewsInDB(++index);
                     }
                     else
                     {
@@ -244,20 +255,22 @@ let SaveNewsInDB = function(index)
             });
         });
     }
+    else
+    {
+        startAnalisis(terms, ++indexSearch);
+    }
 
     function insert_tb_content(newAPI)
     {
         var query_insert_tb_content = 'INSERT INTO tb_content ' +
-            '(id_nu_content_type, tittle, description, url, url_image, dtm_date, location, id_nu_state) ' + 
+            '(id_nu_content_type, tittle, description, url, url_image, dtm_date) ' + 
             'VALUES (' +
                 "'1','" +
                 newAPI.name.replace(/'/g,'') + "','" +
                 newAPI.description.replace(/'/g,'') + "','" +
                 newAPI.url + "','" +
                 (newAPI.image ? newAPI.image.thumbnail.contentUrl : "") + "','" +
-                newAPI.datePublished + "','" +
-                "0,0" + "','" +
-                "1" + "') " +
+                newAPI.datePublished + "') " +
             "RETURNING id_nu_content";
         
         pg.connect(connectionString, function(err, client, done) 
@@ -345,7 +358,7 @@ let SaveNewsInDB = function(index)
             pg.connect(connectionString, function(err, client, done) 
             {
                 var keyPhrase = keyPhrases[indexKey];
-                var query_select_keyPhrase = "SELECT id_nu_key_phrase FROM tb_key_phrase WHERE key_phrase = " + "'" + keyPhrase + "'";
+                var query_select_keyPhrase = "SELECT id_nu_key_phrase FROM tb_key_phrase WHERE key_phrase = " + "'" + keyPhrase.replace(/'/g,'+') + "'";
 
                 client.query(query_select_keyPhrase, function(err, result) 
                 {
@@ -375,7 +388,7 @@ let SaveNewsInDB = function(index)
             {
                 pg.connect(connectionString, function(err, client, done) 
                 {
-                    var query_insert_tb_key_phrase = "INSERT INTO tb_key_phrase (key_phrase) VALUES ('" + keyPhrase + "') RETURNING id_nu_key_phrase";
+                    var query_insert_tb_key_phrase = "INSERT INTO tb_key_phrase (key_phrase) VALUES ('" + keyPhrase.replace(/'/g,'+') + "') RETURNING id_nu_key_phrase";
     
                     client.query(query_insert_tb_key_phrase, function(err, result) 
                     {
@@ -414,7 +427,7 @@ let SaveNewsInDB = function(index)
                         }
                         else
                         { 
-                            console.log("succeded inserting id_nu_key_phrase: " + result.rows[0].id_nu_content_key_phrase);
+                            console.log("succeded inserting id_nu_content_key_phrase: " + result.rows[0].id_nu_content_key_phrase);
 
                             saveKeyPhrases(++indexKey);
                         }
@@ -432,10 +445,10 @@ let SaveNewsInDB = function(index)
 
 // Helper functions
 
-let BuildJSONDocs = function()
+let BuildJSONDocs = function ()
 {
     // Build JSON to get opinions and key phrases:
-    
+    documents = { documents: [] };
     var document;
 
     var N = newsAPI.length;
@@ -448,7 +461,7 @@ let BuildJSONDocs = function()
     Request_Opinion(documents);
 }
 
-function searchOpinion(url)
+let searchOpinion = function (url)
 {
     var N = opinionsAPI.length;
 
@@ -462,7 +475,7 @@ function searchOpinion(url)
     return null;
 }
 
-function searchKeyPhrases(url)
+let searchKeyPhrases = function (url)
 {
     var N = keyPhrasesAPI.length;
 
@@ -475,3 +488,17 @@ function searchKeyPhrases(url)
     }
     return null;
 }
+
+let startAnalisis = function (termsToSearch, indexSearch)
+{
+    if (indexSearch < termsToSearch.length)
+    {
+        var term = termsToSearch[indexSearch].replace(/ /g,'+');
+
+        console.log('=============== Buscando noticias para ' + term + '===============');
+        Request_BingNewsSearchAPI(term);
+    }
+}
+
+var indexSearch = 0;
+startAnalisis(terms, indexSearch);
