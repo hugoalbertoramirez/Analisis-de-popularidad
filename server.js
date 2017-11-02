@@ -40,8 +40,6 @@ var keyPhrasesAPI;
 var opinionsAPI;
 var documents = { documents: [] };
 
-var term = 'epn';
-
 // Fuente: https://elmercurio.com.mx/nacional/conoce-los-28-aspirantes-a-la-presidencia-mexico-en-2018
 var candidatosPresidencia2018 =
 [
@@ -79,7 +77,7 @@ var partidosPoliticos =
 [
     "PARTIDO ACCIÓN NACIONAL",
     "PARTIDO REVOLUCIONARIO INSTITUCIONAL", 
-    "PARTIDO DE LA REVOLUCIÓN DEMOCRÁTICA.", 
+    "PARTIDO DE LA REVOLUCIÓN DEMOCRÁTICA", 
     "PARTIDO VERDE ECOLOGISTA DE MÉXICO", 
     "PARTIDO DEL TRABAJO",
     "NUEVA ALIANZA",
@@ -87,7 +85,44 @@ var partidosPoliticos =
     "MOVIMIENTO REGENERACIÓN NACIONAL"
 ];
 
-var terms = partidosPoliticos;
+var statesMexico = 
+[
+    "AGUASCALIENTES",
+    "BAJA CALIFORNIA",
+    "BAJA CALIFORNIA SUR",
+    "CAMPECHE",
+    "COAHUILA DE ZARAGOZA",
+    "COLIMA",
+    "CHIAPAS",
+    "CHIHUAHUA",
+    "CIUDAD DE MEXICO",
+    "DURANGO",
+    "GUANAJUATO",
+    "GUERRERO",
+    "HIDALGO",
+    "JALISCO",
+    "ESTADO DE MEXICO",
+    "MICHOACAN DE OCAMPO",
+    "MORELOS",
+    "NAYARIT",
+    "NUEVO LEON",
+    "OAXACA",
+    "PUEBLA",
+    "QUERETARO DE ARTEAGA",
+    "QUINTANA ROO",
+    "SAN LUIS POTOSI",
+    "SINALOA",
+    "SONORA",
+    "TABASCO",
+    "TAMAULIPAS",
+    "TLAXCALA",
+    "VERACRUZ DE IGNACIO DE LA LLAVE",
+    "YUCATAN",
+    "ZACATECAS"
+];
+
+var terms = statesMexico;
+
 // Searching news functions:
 
 let Request_BingNewsSearchAPI = function (search) 
