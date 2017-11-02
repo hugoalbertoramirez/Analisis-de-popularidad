@@ -34,7 +34,8 @@ var port = '5432';
 var database = 'politica';
 let connectionString = 'pg://' + userName + ':' + password + '@' + server + ':' + port + '/' + database;
 
-//
+// Variables de analisis:
+
 var newsAPI;
 var keyPhrasesAPI;
 var opinionsAPI;
@@ -252,11 +253,18 @@ let SaveNewsInDB = function (index)
 
     var N = newsAPI.length;
     var newAPI;
-    var query_id_nu_content;
     var id_nu_opinion;
     var id_nu_content;
     var keyPhrases;
     var nKeyPhrases;
+
+    var query_select_id_nu_content;
+    var query_insert_tb_content;
+    var query_insert_tb_opinion;
+    var query_insert_tb_r_content_opinion;
+    var query_select_keyPhrase;
+    var query_insert_tb_key_phrase;
+    var query_insert_tb_r_content_key_phrase;
 
     if (index < N)
     {
@@ -264,14 +272,14 @@ let SaveNewsInDB = function (index)
 
         pg.connect(connectionString, function(err, client, done) 
         {
-            query_id_nu_content = "SELECT id_nu_content FROM tb_content WHERE url = '"  + newAPI.url  + "'";
+            query_select_id_nu_content = "SELECT id_nu_content FROM tb_content WHERE url = '"  + newAPI.url  + "'";
             
-            client.query(query_id_nu_content, function(err, result) 
+            client.query(query_select_id_nu_content, function(err, result) 
             {
                 done();
                 if (err)
                 { 
-                    console.error("error: \n" + query_id_nu_content + '\n' + err);
+                    console.error("error: \n" + query_select_id_nu_content + '\n' + err);
                 }
                 else
                 { 
@@ -297,7 +305,7 @@ let SaveNewsInDB = function (index)
 
     function insert_tb_content(newAPI)
     {
-        var query_insert_tb_content = 'INSERT INTO tb_content ' +
+        query_insert_tb_content = 'INSERT INTO tb_content ' +
             '(id_nu_content_type, tittle, description, url, url_image, dtm_date) ' + 
             'VALUES (' +
                 "'1','" +
@@ -334,7 +342,7 @@ let SaveNewsInDB = function (index)
 
         if (opinion)
         {
-            var query_insert_tb_opinion = "INSERT INTO tb_opinion (opinion) VALUES (" + opinion + ") RETURNING id_nu_opinion";
+            query_insert_tb_opinion = "INSERT INTO tb_opinion (opinion) VALUES (" + opinion + ") RETURNING id_nu_opinion";
 
             pg.connect(connectionString, function(err, client, done) 
             {
@@ -361,7 +369,7 @@ let SaveNewsInDB = function (index)
     {
         if (id_nu_opinion && id_nu_content)
         {
-            var query_insert_tb_r_content_opinion = "INSERT INTO tb_r_content_opinion (id_nu_content, id_nu_opinion) VALUES (" + 
+            query_insert_tb_r_content_opinion = "INSERT INTO tb_r_content_opinion (id_nu_content, id_nu_opinion) VALUES (" + 
                                                    id_nu_content + ", " + id_nu_opinion + ") RETURNING id_nu_content_opinion";
             
             pg.connect(connectionString, function(err, client, done) 
@@ -393,7 +401,7 @@ let SaveNewsInDB = function (index)
             pg.connect(connectionString, function(err, client, done) 
             {
                 var keyPhrase = keyPhrases[indexKey];
-                var query_select_keyPhrase = "SELECT id_nu_key_phrase FROM tb_key_phrase WHERE key_phrase = " + "'" + keyPhrase.replace(/'/g,'+') + "'";
+                query_select_keyPhrase = "SELECT id_nu_key_phrase FROM tb_key_phrase WHERE key_phrase = " + "'" + keyPhrase.replace(/'/g,'+') + "'";
 
                 client.query(query_select_keyPhrase, function(err, result) 
                 {
@@ -423,7 +431,7 @@ let SaveNewsInDB = function (index)
             {
                 pg.connect(connectionString, function(err, client, done) 
                 {
-                    var query_insert_tb_key_phrase = "INSERT INTO tb_key_phrase (key_phrase) VALUES ('" + keyPhrase.replace(/'/g,'+') + "') RETURNING id_nu_key_phrase";
+                    query_insert_tb_key_phrase = "INSERT INTO tb_key_phrase (key_phrase) VALUES ('" + keyPhrase.replace(/'/g,'+') + "') RETURNING id_nu_key_phrase";
     
                     client.query(query_insert_tb_key_phrase, function(err, result) 
                     {
@@ -448,7 +456,7 @@ let SaveNewsInDB = function (index)
             {
                 pg.connect(connectionString, function(err, client, done) 
                 {
-                    var query_insert_tb_r_content_key_phrase = "INSERT INTO tb_r_content_key_phrase (id_nu_content, id_nu_key_phrase, frequency) VALUES (" + 
+                    query_insert_tb_r_content_key_phrase = "INSERT INTO tb_r_content_key_phrase (id_nu_content, id_nu_key_phrase, frequency) VALUES (" + 
                                                                 id_nu_content + "," + 
                                                                 id_nu_key_phrase + "," + 
                                                                 (frequency > 0 ?  frequency : 1) + ") RETURNING id_nu_content_key_phrase";
@@ -528,10 +536,10 @@ let startAnalisis = function (termsToSearch, indexSearch)
 {
     if (indexSearch < termsToSearch.length)
     {
-        var term = termsToSearch[indexSearch].replace(/ /g,'+');
+        var term = termsToSearch[indexSearch].replace(/ /g, '+');
 
         console.log('=============== Buscando noticias para ' + term + '===============');
-        Request_BingNewsSearchAPI(term);
+        //Request_BingNewsSearchAPI(term);
     }
 }
 
