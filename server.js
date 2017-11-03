@@ -122,7 +122,31 @@ var statesMexico =
     "ZACATECAS"
 ];
 
-var terms = statesMexico;
+var terms = candidatosPresidencia2018;
+
+// Video indexer API function:
+
+let Request_VideoIndexAPI = function(search)
+{
+    let request_params = 
+    {
+        method : 'GET',
+        hostname : 'videobreakdown.azure-api.net',
+        path : '/Breakdowns/Api/Partner/Breakdowns?videoUrl=' + 'https://www.youtube.com/watch?v=Y56EwvOhg7U',
+        headers : 
+        {
+            'Ocp-Apim-Subscription-Key' : '7c3b04e87be44f10be0386b5558dde91',
+        }
+    };
+
+    let req = https.request(request_params, ResponseHandler_BingNewsSearchAPI);
+    req.end();
+}
+
+let Response_VideoIndexAPI = function(response)
+{
+
+}
 
 // Searching news functions:
 
@@ -539,7 +563,7 @@ let startAnalisis = function (termsToSearch, indexSearch)
         var term = termsToSearch[indexSearch].replace(/ /g, '+');
 
         console.log('=============== Buscando noticias para ' + term + '===============');
-        //Request_BingNewsSearchAPI(term);
+        Request_BingNewsSearchAPI(term);
     }
 }
 
