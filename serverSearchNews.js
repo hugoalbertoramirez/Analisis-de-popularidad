@@ -46,7 +46,7 @@ var pg = require('pg');
 let bingNewsSearchKey = 'deacf907f3344a08908224848d44bf3d';
 let host_BingNewsSearchAPI = 'api.cognitive.microsoft.com';
 let path_BingNewsSearchAPI = '/bing/v7.0/news/search';
-let limitNumberNews = 1; // MAX = 100
+let limitNumberNews = 100; // MAX = 100
 
 // Datos Text Analytics API:
 
@@ -82,6 +82,7 @@ var documents = { documents: [] };
 // Fuente: https://elmercurio.com.mx/nacional/conoce-los-28-aspirantes-a-la-presidencia-mexico-en-2018
 var candidatosPresidencia2018_partidos_estados =
 [
+    "José Antonio Meade",
     // "Ricardo Anaya",
     // "Margarita Zavala",
     // "Luis Ernesto Derbez",
@@ -160,11 +161,19 @@ var terms = candidatosPresidencia2018_partidos_estados;
 
 let Request_BingNewsSearchAPI = function (search) 
 {
+    var varPath = path_BingNewsSearchAPI + '?q=' + search + '&count=' + limitNumberNews;
+    
+    if (trending)
+    {
+        varPath = varPath + '&freshness=Day';
+    }
+
+
     let request_params = 
     {
         method : 'GET',
         hostname : host_BingNewsSearchAPI,
-        path : path_BingNewsSearchAPI + '?q=' + search + '&count=' + limitNumberNews,
+        path : varPath,
         headers : 
         {
             'Ocp-Apim-Subscription-Key' : bingNewsSearchKey,
@@ -403,10 +412,12 @@ let SaveNewsInDB = function (index)
 
     function insert_tb_content(newAPI)
     {
+        var id_nu_content_type = trending ? 6 : 1;
+        
         query_insert_tb_content = 'INSERT INTO tb_content ' +
             '(id_nu_content_type, tittle, description, url, url_image, dtm_date, id_nu_publisher) ' + 
-            'VALUES (' +
-                "'1','" +
+            "VALUES ('" +
+                id_nu_content_type + "','" +
                 newAPI.name.replace(/'/g,'') + "','" +
                 newAPI.description.replace(/'/g,'') + "','" +
                 newAPI.url + "','" +
@@ -643,4 +654,5 @@ let startAnalisis = function (termsToSearch, indexSearch)
 }
 
 var indexSearch = 0;
+var trending = true;
 startAnalisis(terms, indexSearch);
