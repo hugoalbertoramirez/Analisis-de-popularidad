@@ -318,23 +318,20 @@ let SaveVideosInDB = function (index)
 
         pg.connect(connectionString, function(err, client, done) 
         {
-            pg.connect(connectionString, function(err, client, done) 
+            client.query(query_insert_tb_publisher, function(err, result) 
             {
-                client.query(query_insert_tb_publisher, function(err, result) 
-                {
-                    done();
-                    if (err)
-                    { 
-                        console.error("error: \n" + query_insert_tb_publisher + '\n' + err);
-                    }
-                    else
-                    { 
-                        id_nu_publisher = result.rows[0].id_nu_publisher;
-                        console.log("succeded inserting id_nu_publisher: " + id_nu_publisher);
+                done();
+                if (err)
+                { 
+                    console.error("error: \n" + query_insert_tb_publisher + '\n' + err);
+                }
+                else
+                { 
+                    id_nu_publisher = result.rows[0].id_nu_publisher;
+                    console.log("succeded inserting id_nu_publisher: " + id_nu_publisher);
 
-                        insert_tb_content(videoAPI); 
-                    }
-                });
+                    insert_tb_content(videoAPI); 
+                }
             });
         });
     }

@@ -111,14 +111,14 @@ var candidatosPresidencia2018_partidos_estados =
     // "Jaime Heliódoro Rodríguez Calderón",
     // "Andrés Manuel López Obrador",
 
-    "PARTIDO ACCIÓN NACIONAL",
-    "PARTIDO REVOLUCIONARIO INSTITUCIONAL", 
-    "PARTIDO DE LA REVOLUCIÓN DEMOCRÁTICA", 
-    "PARTIDO VERDE ECOLOGISTA DE MÉXICO", 
-    "PARTIDO DEL TRABAJO",
-    "NUEVA ALIANZA",
-    "MOVIMIENTO CIUDADANO",
-    "MOVIMIENTO REGENERACIÓN NACIONAL",
+    // "PARTIDO ACCIÓN NACIONAL",
+    // "PARTIDO REVOLUCIONARIO INSTITUCIONAL", 
+    // "PARTIDO DE LA REVOLUCIÓN DEMOCRÁTICA", 
+    // "PARTIDO VERDE ECOLOGISTA DE MÉXICO", 
+    // "PARTIDO DEL TRABAJO",
+    // "NUEVA ALIANZA",
+    // "MOVIMIENTO CIUDADANO",
+    // "MOVIMIENTO REGENERACIÓN NACIONAL",
     
     // "AGUASCALIENTES",
     // "BAJA CALIFORNIA",
@@ -283,8 +283,8 @@ let SaveNewsInDB = function (index)
     if (index < N)
     {
         // check results from API:
-        //console.log(JSON.stringify(newsAPI, null, 2));
-        console.log(JSON.stringify(opinionsAPI, null, 2));
+        // console.log(JSON.stringify(newsAPI, null, 2));
+        // console.log(JSON.stringify(opinionsAPI, null, 2));
         // console.log(JSON.stringify(keyPhrasesAPI, null, 2));
 
         var newAPI;
@@ -343,7 +343,7 @@ let SaveNewsInDB = function (index)
     {
         pg.connect(connectionString, function(err, client, done) 
         {
-            query_select_tb_publisher = "SELECT id_nu_publisher FROM tb_publisher WHERE name = '" + newAPI.provider[0].name + "'";
+            query_select_tb_publisher = "SELECT id_nu_publisher FROM tb_publisher WHERE name LIKE '%" + newAPI.provider[0].name + "%'";
 
             client.query(query_select_tb_publisher, function(err, result) 
             {
