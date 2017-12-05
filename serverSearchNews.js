@@ -46,7 +46,6 @@ var pg = require('pg');
 let bingNewsSearchKey = 'deacf907f3344a08908224848d44bf3d';
 let host_BingNewsSearchAPI = 'api.cognitive.microsoft.com';
 let path_BingNewsSearchAPI = '/bing/v7.0/news/search';
-let limitNumberNews = 100; // MAX = 100
 
 // Datos Text Analytics API:
 
@@ -161,11 +160,15 @@ var terms = candidatosPresidencia2018_partidos_estados;
 
 let Request_BingNewsSearchAPI = function (search) 
 {
-    var varPath = path_BingNewsSearchAPI + '?q=' + search + '&count=' + limitNumberNews;
+    var varPath;
     
     if (trending)
     {
-        varPath = varPath + '&freshness=Day';
+        varPath = path_BingNewsSearchAPI + '?q=' + search + '&count=' + limitNumberNews;
+    }
+    else
+    {
+        varPath = path_BingNewsSearchAPI + '?count=' + limitNumberNews + '&freshness=Day';
     }
 
 
@@ -317,7 +320,8 @@ let SaveNewsInDB = function (index)
 
         pg.connect(connectionString, function(err, client, done) 
         {
-            query_select_id_nu_content = "SELECT id_nu_content FROM tb_content WHERE id_nu_content_type = 1 AND url = '"  + newAPI.url  + "'";
+            var id_nu_content_type = trending ? 6 : 1;
+            query_select_id_nu_content = "SELECT id_nu_content FROM tb_content WHERE id_nu_content_type = " + id_nu_content_type + " AND url = '"  + newAPI.url  + "'";
             
             client.query(query_select_id_nu_content, function(err, result) 
             {
@@ -345,7 +349,10 @@ let SaveNewsInDB = function (index)
     }
     else
     {
-        startAnalisis(terms, ++indexSearch);
+        if (!trending)
+        {
+            startAnalisis(terms, ++indexSearch);
+        }
     }
 
     function select_tb_publisher(newAPI)
@@ -653,6 +660,25 @@ let startAnalisis = function (termsToSearch, indexSearch)
     }
 }
 
-var indexSearch = 0;
-var trending = true;
-startAnalisis(terms, indexSearch);
+let searchTrending = function()
+{
+    Request_BingNewsSearchAPI("");
+}
+
+let limitNumberNews = 100; // MAX = 100
+let trending = true;
+
+let main = function()
+{
+    if (trending)
+    {
+        searchTrending();
+    }
+    else
+    {
+        var indexSearch = 0;
+        startAnalisis(terms, indexSearch);
+    }
+}
+
+main()
