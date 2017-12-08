@@ -81,13 +81,13 @@ var documents = { documents: [] };
 // Fuente: https://elmercurio.com.mx/nacional/conoce-los-28-aspirantes-a-la-presidencia-mexico-en-2018
 var candidatosPresidencia2018_partidos_estados =
 [
-    "José Antonio Meade",
+    // "José Antonio Meade",
     // "Ricardo Anaya",
     // "Margarita Zavala",
     // "Luis Ernesto Derbez",
     // "Rafael Moreno Valle",
     // "Juan Carlos Romero Hicks",
-    // "Miguel Márquez",
+    //"Miguel Márquez",
     // "Ernesto Ruffo",
     // "Miguel Ángel Yunes Linares",
     // "Eruviél Avila",
@@ -101,57 +101,24 @@ var candidatosPresidencia2018_partidos_estados =
     // "Luis Videgaray Caso",
     // "Silvano Aureoles Conejo",
     // "Miguel Ángel Mancera",
-    // "Graco Luis Ramírez Garrido Abreu",
-    // "Juan Zepeda Hernández",
-    // "Emilio Álvarez Icaza Longoria",
-    // "José Gerardo Rodolfo Fernández Noroña",
-    // "Pedro Ferriz de Con",
-    // "María de Jesús Patricio Martínez",
-    // "Armando Ríos Piter",
-    // "Jaime Heliódoro Rodríguez Calderón",
-    // "Andrés Manuel López Obrador",
+    "Graco Luis Ramírez Garrido Abreu",
+    "Juan Zepeda Hernández",
+    "Emilio Álvarez Icaza Longoria",
+    "José Gerardo Rodolfo Fernández Noroña",
+    "Pedro Ferriz de Con",
+    "María de Jesús Patricio Martínez",
+    "Armando Ríos Piter",
+    "Jaime Heliódoro Rodríguez Calderón",
+    "Andrés Manuel López Obrador",
 
-    // "PARTIDO ACCIÓN NACIONAL",
-    // "PARTIDO REVOLUCIONARIO INSTITUCIONAL", 
-    // "PARTIDO DE LA REVOLUCIÓN DEMOCRÁTICA", 
-    // "PARTIDO VERDE ECOLOGISTA DE MÉXICO", 
-    // "PARTIDO DEL TRABAJO",
-    // "NUEVA ALIANZA",
-    // "MOVIMIENTO CIUDADANO",
-    // "MOVIMIENTO REGENERACIÓN NACIONAL",
-    
-    // "AGUASCALIENTES",
-    // "BAJA CALIFORNIA",
-    // "BAJA CALIFORNIA SUR",
-    // "CAMPECHE",
-    // "COAHUILA DE ZARAGOZA",
-    // "COLIMA",
-    // "CHIAPAS",
-    // "CHIHUAHUA",
-    // "CIUDAD DE MEXICO",
-    // "DURANGO",
-    // "GUANAJUATO",
-    // "GUERRERO",
-    // "HIDALGO",
-    // "JALISCO",
-    // "ESTADO DE MEXICO",
-    // "MICHOACAN DE OCAMPO",
-    // "MORELOS",
-    // "NAYARIT",
-    // "NUEVO LEON",
-    // "OAXACA",
-    // "PUEBLA",
-    // "QUERETARO DE ARTEAGA",
-    // "QUINTANA ROO",
-    // "SAN LUIS POTOSI",
-    // "SINALOA",
-    // "SONORA",
-    // "TABASCO",
-    // "TAMAULIPAS",
-    // "TLAXCALA",
-    // "VERACRUZ DE IGNACIO DE LA LLAVE",
-    // "YUCATAN",
-    // "ZACATECAS",
+    "PARTIDO ACCIÓN NACIONAL",
+    "PARTIDO REVOLUCIONARIO INSTITUCIONAL", 
+    "PARTIDO DE LA REVOLUCIÓN DEMOCRÁTICA", 
+    "PARTIDO VERDE ECOLOGISTA DE MÉXICO", 
+    "PARTIDO DEL TRABAJO",
+    "NUEVA ALIANZA",
+    "MOVIMIENTO CIUDADANO",
+    "MOVIMIENTO REGENERACIÓN NACIONAL",
 ];
 
 var terms = candidatosPresidencia2018_partidos_estados;
@@ -164,11 +131,11 @@ let Request_BingNewsSearchAPI = function (search)
     
     if (trending)
     {
-        varPath = path_BingNewsSearchAPI + '?q=' + search + '&count=' + limitNumberNews;
+        varPath = path_BingNewsSearchAPI + '?count=' + limitNumberNews;// + '&freshness=Day';
     }
     else
     {
-        varPath = path_BingNewsSearchAPI + '?count=' + limitNumberNews + '&freshness=Day';
+        varPath = path_BingNewsSearchAPI + '?q=' + search + '&count=' + limitNumberNews;
     }
 
 
@@ -321,7 +288,7 @@ let SaveNewsInDB = function (index)
         pg.connect(connectionString, function(err, client, done) 
         {
             var id_nu_content_type = trending ? 6 : 1;
-            query_select_id_nu_content = "SELECT id_nu_content FROM tb_content WHERE id_nu_content_type = " + id_nu_content_type + " AND url = '"  + newAPI.url  + "'";
+            query_select_id_nu_content = "SELECT id_nu_content FROM tb_content WHERE id_nu_content_type = " + id_nu_content_type + " AND url = '"  + newAPI.url.replace(/'/g,'')  + "'";
             
             client.query(query_select_id_nu_content, function(err, result) 
             {
@@ -359,7 +326,10 @@ let SaveNewsInDB = function (index)
     {
         pg.connect(connectionString, function(err, client, done) 
         {
-            query_select_tb_publisher = "SELECT id_nu_publisher FROM tb_publisher WHERE name LIKE '%" + newAPI.provider[0].name + "%'";
+            query_select_tb_publisher = "SELECT id_nu_publisher FROM tb_publisher " +
+             "WHERE unaccent(UPPER(name)) LIKE unaccent(UPPER('%" + newAPI.provider[0].name + "%')) " +
+             "OR unaccent(UPPER('" + newAPI.provider[0].name + "')) LIKE unaccent(UPPER(CONCAT ('%',name,'%'))) " + 
+             "ORDER BY length(name)";
 
             client.query(query_select_tb_publisher, function(err, result) 
             {
@@ -427,8 +397,8 @@ let SaveNewsInDB = function (index)
                 id_nu_content_type + "','" +
                 newAPI.name.replace(/'/g,'') + "','" +
                 newAPI.description.replace(/'/g,'') + "','" +
-                newAPI.url + "','" +
-                (newAPI.image ? newAPI.image.thumbnail.contentUrl : "") + "','" +
+                newAPI.url.replace(/'/g,'') + "','" +
+                (newAPI.image ? newAPI.image.thumbnail.contentUrl.name : "") + "','" +
                 newAPI.datePublished + "','" + 
                 id_nu_publisher + "') " +
             "RETURNING id_nu_content";
@@ -666,7 +636,8 @@ let searchTrending = function()
 }
 
 let limitNumberNews = 100; // MAX = 100
-let trending = true;
+let trending = false;
+var indexSearch = 0;
 
 let main = function()
 {
@@ -675,8 +646,7 @@ let main = function()
         searchTrending();
     }
     else
-    {
-        var indexSearch = 0;
+    {        
         startAnalisis(terms, indexSearch);
     }
 }

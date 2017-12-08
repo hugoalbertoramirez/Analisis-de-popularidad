@@ -96,7 +96,7 @@ function insert_tb_publisher(typePub, namePub, id_nu_state, index)
                 }
                 else
                 {
-                    parserRow(++index);
+                    insert_tb_r_publisher_state(id_nu_publisher, 0, index); 
                 }
             }
         });
